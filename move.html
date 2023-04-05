@@ -1,0 +1,135 @@
+<!--
+ * @Date: 2023-04-05 16:55:07
+ * @LastEditors: 清咔 874518796@qq.com
+ * @LastEditTime: 2023-04-05 17:28:55
+ * @FilePath: \threejsExample\move.html
+ * @Description: Description here
+-->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>My first three.js app</title>
+    <style>
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="./js/three.js"></script>
+    <script src="./js/OrbitControls.js"></script>
+    <script>
+        // Our Javascript will go here.
+        // 声明场景
+        const scene = new THREE.Scene()
+        scene.background = new THREE.Color(0x45d6f9)
+        // 声明相机
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
+        // 声明渲染
+        const renderer = new THREE.WebGLRenderer()
+        // 设置渲染内容宽高
+        renderer.setSize(window.innerWidth, window.innerHeight)
+        // 插入 渲染容器 到 html中
+        document.body.appendChild(renderer.domElement)
+
+        const geometry = new THREE.BoxGeometry(1, 1, 1)
+        // 材质
+        const phongmaterial = new THREE.MeshPhongMaterial({ color: 0xff0000, specular: 0xffff00, shininess: 100 });
+
+        // const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+        const cube = new THREE.Mesh(geometry, phongmaterial)
+        cube.position.x = 3;
+        scene.add(cube)
+
+        camera.position.set(2, 4, 5);
+
+        // 创建轨道控制
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        // 坐标轴控制器
+        const axesHelper = new THREE.AxesHelper(5);
+        scene.add(axesHelper);
+
+        // 网格辅助器
+        const gridHelper = new THREE.GridHelper(10, 10);
+        scene.add(gridHelper);
+
+        // 箭头辅助器
+        const dir = new THREE.Vector3(1, 2, 0);
+        dir.normalize();
+        const origin = new THREE.Vector3(0, 0, 0);
+        const length = 1;
+        const hex = 0xffff00;
+        const arrowHelper = new THREE.ArrowHelper(dir, origin, length, hex);
+        scene.add(arrowHelper);
+
+        // 1. scale 设置缩放
+        // cube.scale.set(3, 2, 1)
+        // cube.scale.x = 2
+
+        // 2. rotation 设置旋转: 物体的局部旋转，以弧度来表示
+        // 直接设置旋转属性，绕x旋转90度
+        // cube.rotation.x = -Math.PI / 2
+
+        // cube.rotation.set(-Math.PI / 2, 0, 0)
+
+        // Clock 跟踪时间处理动画
+        const clock = new THREE.Clock()
+        function render() {
+            let time = clock.getElapsedTime()
+            let t = time % 5
+            cube.position.x = t * 1
+            if (cube.position.x > 5) {
+                cube.position.x = 0
+            }
+            renderer.render(scene, camera);
+            requestAnimationFrame(render)
+        }
+        render()
+
+        // 自适应大小
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight
+            camera.updateProjectionMatrix()
+            renderer.setSize(window.innerWidth, window.innerHeight)
+            // 设置渲染像素比
+            resizeRendererToDisplaySize(renderer)
+            // renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+        })
+
+        function resizeRendererToDisplaySize(renderer) {
+            const canvas = renderer.domElement
+            const pixelRatio = window.devicePixelRatio
+            const width = canvas.clientWidth * pixelRatio | 0
+            const height = canvas.clientHeight * pixelRatio | 0
+            const needResize = canvas.width !== width || canvas.height !== height
+            if (needResize) {
+                renderer.setSize(width, height, false)
+            }
+            return needResize
+        }
+
+        // 控制场景全屏 双击全屏
+        window.addEventListener('dblclick', () => {
+            const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement
+            if (fullscreenElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen()
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen()
+                }
+            } else {
+                if (renderer.domElement.requestFullscreen) {
+                    renderer.domElement.requestFullscreen()
+                } else if (renderer.domElement.webkitRequestFullscreen) {
+                    renderer.domElement.webkitRequestFullscreen()
+                }
+            }
+        })
+
+    </script>
+</body>
+
+</html>
