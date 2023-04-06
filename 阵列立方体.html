@@ -1,0 +1,59 @@
+<!--
+ * @Description: 
+ * @Author: zhh_e
+ * @Date: 2023-04-06 14:26:55
+ * @LastEditors: zhh_e
+ * @LastEditTime: 2023-04-06 15:23:51
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阵列立方体</title>
+</head>
+
+<body>
+    <script src="./js/three.js"></script>
+    <!-- 引入控制器 -->
+    <script src="./js/OrbitControls.js"></script>
+    <!-- 引入GUI库 -->
+    <!-- <script src="./js/dat.gui.min.js"></script> -->
+    <script>
+        // const gui = new GUI()
+        const scene = new THREE.Scene()
+        const camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 1, 8000)
+        camera.position.set(2000, 2000, 2000);
+        const renderer = new THREE.WebGLRenderer()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+        document.body.appendChild(renderer.domElement)
+
+        const geometry = new THREE.BoxGeometry(100, 100, 100)
+        const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3 })
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 10; j += 2) {
+                for (let k = 0; k < 10; k++) {
+                    const mesh = new THREE.Mesh(geometry, material)
+                    mesh.position.set(i * 100, j * 100 + 50, k * 100)
+                    scene.add(mesh)
+                }
+            }
+        }
+
+        const axesHelper = new THREE.AxesHelper(1000, 1000, 1000)
+        scene.add(axesHelper)
+        const gridHelper = new THREE.GridHelper(8000, 8000)
+        scene.add(gridHelper)
+        const controls = new THREE.OrbitControls(camera, renderer.domElement)
+
+        function render() {
+            renderer.render(scene, camera)
+            requestAnimationFrame(render)
+        }
+        render()
+    </script>
+</body>
+
+</html>
