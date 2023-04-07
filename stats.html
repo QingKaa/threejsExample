@@ -1,0 +1,92 @@
+<!--
+ * @Description: 
+ * @Author: zhh_e
+ * @Date: 2023-04-07 09:15:41
+ * @LastEditors: zhh_e
+ * @LastEditTime: 2023-04-07 10:52:18
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>stats</title>
+    <style>
+        body {
+            background-color: #bfe3dd;
+            color: #000;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./js/three.module.js",
+                "three/addons/": "./js/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import Stats from "three/addons/libs/stats.module.js"
+        import * as THREE from "three"
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, stats, controls, geoGroup
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x45d6f9)
+            camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 1, 4000);
+            camera.position.set(1500, 1500, 1500);
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight)
+            stats = new Stats();
+            document.body.appendChild(renderer.domElement);
+            document.body.appendChild(stats.dom);
+            geoGroup = addGeo()
+            scene.add(geoGroup)
+            window.addEventListener('resize', onResize, false);
+            controls = new OrbitControls(camera, renderer.domElement);
+            return true
+        }
+
+        function initGridHelper() {
+            const gridHelper = new THREE.GridHelper(1000, 10, 0x888888, 0x444444)
+            scene.add(gridHelper)
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+            stats.update();
+            geoGroup.rotation.y += 0.01
+            geoGroup.rotation.x += 0.01
+            requestAnimationFrame(render)
+        }
+
+        function addGeo() {
+            const geoGroup = new THREE.Group()
+            for (let i = 0; i < 300; i++) {
+                const geometry = new THREE.BoxGeometry(50, 50, 50);
+                const material = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+                const cube = new THREE.Mesh(geometry, material);
+                cube.position.set(Math.random() * 1000 - 500, Math.random() * 1000 - 500, Math.random() * 1000 - 500)
+                geoGroup.add(cube)
+            }
+            return geoGroup
+        }
+
+        if (init()) render()
+    </script>
+</body>
+
+</html>
