@@ -1,0 +1,129 @@
+<!--
+ * @Description: 
+ * @Author: zhh_e
+ * @Date: 2023-04-07 16:18:15
+ * @LastEditors: zhh_e
+ * @LastEditTime: 2023-04-07 17:11:46
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鼠标拾取</title>
+    <style>
+        body {
+            margin: 0
+        }
+    </style>
+</head>
+
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./js/three.module.js",
+                "three/addons/": "./js/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from "three"
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer
+        let INTERSECTED
+        let pointer = new THREE.Vector2()
+        let raycaster
+        init()
+        animate()
+        function init() {
+
+            camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 1, 8000)
+            camera.position.set(1000, 1000, 1000)
+            scene = new THREE.Scene()
+            scene.background = new THREE.Color(0x45d6f9)
+
+            // const light = new THREE.DirectionalLight(0xffffff, 1);
+            // light.position.set(1, 1, 1).normalize()
+            // scene.add(light)
+            const light = new THREE.HemisphereLight(0xffffff, 0x888888);
+            light.position.set(0, 1, 0);
+            scene.add(light);
+            // 创建环境光
+            // const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
+            // scene.add(ambientLight)
+
+            renderer = new THREE.WebGLRenderer()
+            renderer.setPixelRatio(window.devicePixelRatio)
+            renderer.setSize(window.innerWidth, window.innerHeight)
+            document.body.appendChild(renderer.domElement)
+
+            let controls = new OrbitControls(camera, renderer.domElement)
+
+            const axesHelper = new THREE.AxesHelper(1000)
+            scene.add(axesHelper)
+            const floorGeometry = new THREE.PlaneGeometry(600 - 20, 600 - 20, 10, 10)
+            let floorMaterial = new THREE.MeshBasicMaterial({ color: 0x918597, side: THREE.DoubleSide })
+            let floor = new THREE.Mesh(floorGeometry, floorMaterial)
+            floor.position.set(300, 0, 300)
+            floor.rotation.x = Math.PI / 2
+            scene.add(floor)
+
+            let geometry = new THREE.BoxGeometry(40, 40, 40)
+
+            for (let i = 0; i < 10; i++) {
+                for (let j = 0; j < 10; j++) {
+                    for (let k = 0; k < 10; k++) {
+                        let object = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: new THREE.Color(0x78a355), }))
+                        object.position.set(i * 60 + 21, j * 60 + 21, k * 60 + 21)
+                        scene.add(object)
+                    }
+                }
+
+            }
+            raycaster = new THREE.Raycaster()
+
+            window.addEventListener("mousemove", onPointerMove)
+        }
+
+        function animate() {
+            requestAnimationFrame(animate)
+            render()
+        }
+
+
+        function onPointerMove() {
+            pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+            pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+
+        function render() {
+            raycaster.setFromCamera(pointer, camera)
+            let intersects = raycaster.intersectObjects(scene.children)
+            if (intersects.length > 0) {
+                if (INTERSECTED != intersects[0].object) {
+                    if (INTERSECTED) INTERSECTED.material.color.set(INTERSECTED.currentHex)
+                    INTERSECTED = intersects[0].object
+                    INTERSECTED.currentHex = INTERSECTED.material.color.getHex()
+                    INTERSECTED.material.color.setHex(0xff0000)
+                }
+            }
+            renderer.render(scene, camera)
+        }
+
+        // function renderFloor() {
+        //     let floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10)
+        //     let floorMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide })
+        //     let floor = new THREE.Mesh(floorGeometry, floorMaterial)
+        //     floor.rotation.x = Math.PI / 2
+        //     scene.add(floor)
+        // }
+
+    </script>
+</body>
+
+</html>
