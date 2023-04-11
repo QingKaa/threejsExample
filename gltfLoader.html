@@ -3,7 +3,7 @@
  * @Author: zhh_e
  * @Date: 2023-04-07 11:22:10
  * @LastEditors: zhh_e
- * @LastEditTime: 2023-04-07 15:53:32
+ * @LastEditTime: 2023-04-10 14:55:30
 -->
 <!--
  * @Description: 
@@ -51,6 +51,8 @@
         import { RenderPass } from "three/addons/postprocessing/RenderPass.js"
         import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js"
 
+        let mixer;
+        const clock = new THREE.Clock();
         let scene, camera, renderer, stats, controls, gui, ambientLight, composer;
         function init() {
             initBaseScene()
@@ -95,31 +97,33 @@
             const loader = new GLTFLoader();
             loader.setDRACOLoader(dracoLoader);
 
-            // loader.load('models/gltf/LittlestTokyo.glb', function (gltf) {
+            loader.load('./gltf/t2.glb', function (gltf) {
+                console.log(' ====> gltf', gltf);
+                const model = gltf.scene
+                // model.position.set(1, 1, 0)
+                // model.scale.set(0.01, 0.01, 0.01)
+                scene.add(model)
+                mixer = new THREE.AnimationMixer(model);
+                mixer.clipAction(gltf.animations[0]).play();
+                render()
+            }, undefined, function (e) {
+                console.log(' ====> e', e);
+            })
+            // loader.load("./gltf/gril2.gltf", function (gltf) {
             //     console.log(' ====> gltf', gltf);
             //     const model = gltf.scene
-            //     model.position.set(1, 1, 0)
-            //     model.scale.set(0.01, 0.01, 0.01)
+            //     model.traverse(function (child) {
+            //         if (child.isMesh) {
+            //             console.log(' ====> child.name', child.name);
+            //         }
+            //     })
+            //     let mod = model.getObjectByName("box_13")
+            //     outlinePass.selectedObjects = [mod]
             //     scene.add(model)
             //     render()
             // }, undefined, function (e) {
             //     console.log(' ====> e', e);
             // })
-            loader.load("./gltf/gril2.gltf", function (gltf) {
-                console.log(' ====> gltf', gltf);
-                const model = gltf.scene
-                model.traverse(function (child) {
-                    if (child.isMesh) {
-                        console.log(' ====> child.name', child.name);
-                    }
-                })
-                let mod = model.getObjectByName("box_13")
-                outlinePass.selectedObjects = [mod]
-                scene.add(model)
-                render()
-            }, undefined, function (e) {
-                console.log(' ====> e', e);
-            })
         }
         function onResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -130,6 +134,9 @@
             // renderer.render(scene, camera);
             composer.render()
             stats.update();
+            const delta = clock.getDelta();
+
+            mixer.update(delta);
             requestAnimationFrame(render)
         }
         init()
