@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>城市扫光</title>
+</head>
+<style>
+    body {
+        margin: 0
+    }
+</style>
+
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./js/three.module.js",
+                "three/addons/": "./js/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+
+        import { MapControls } from 'three/addons/controls/MapControls.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let camera, mapControls, scene, renderer, orbControls;
+        let shaderMaterial, ground_shaderMaterial, shaderCircleWidth = 300
+        init()
+        animate()
+
+        function init() {
+            initScene()
+            initCamera()
+            initRenderer()
+            // initMapControls()
+            initOriControls()
+            initLight()
+            initWorld()
+        }
+        function initScene() {
+            scene = new THREE.Scene()
+            scene.background = new THREE.Color(0xcccccc);
+            // scene.fog = new THREE.FogExp2(0xcccccc, 0.002);
+        }
+        function initCamera() {
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera.position.set(500, 200, 0);
+        }
+        function initRenderer() {
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+        }
+        function initMapControls() {
+            mapControls = new MapmapControls(camera, renderer.domElement);
+            mapControls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+            // mapControls.dampingFactor = 0.05;
+            mapControls.screenSpacePanning = false;
+            mapControls.minDistance = 100;
+            mapControls.maxDistance = 5000;
+            mapControls.maxPolarAngle = Math.PI / 2;
+        }
+        function initOriControls() {
+            orbControls = new OrbitControls(camera, renderer.domElement);
+
+        }
+        function initWorld() {
+            // 地面
+            const planeGeo = new THREE.PlaneGeometry(1700, 1700);
+            ground_shaderMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    innerCircleWidth: { value: 0 },
+                    circleWidth: { value: shaderCircleWidth },
+                    diff: { value: new THREE.Color(0.2, 0.2, 0.2) },
+                    color: { value: new THREE.Color(0, 0, 1) },
+                    opacity: { value: 0.3 },
+                    center: { value: new THREE.Vector3(0, 0, 0) },
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    varying vec3 v_position;
+                    void main() {
+                        vUv = uv;
+                        v_position = position;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    varying vec2 vUv;
+                    varying vec3 v_position;
+
+                    uniform float innerCircleWidth;
+                    uniform float circleWidth;
+                    uniform float opacity;
+                    uniform vec3 center;
+
+                    uniform vec3 color;
+                    uniform vec3 diff;
+
+                    void main() {
+                        float dis = length(v_position - center);
+                        if(dis < (innerCircleWidth + circleWidth) && dis > innerCircleWidth){
+                            float r = (dis - innerCircleWidth) / circleWidth;
+                            gl_FragColor = mix(vec4(diff, 0.1), vec4(color, opacity), r);
+                        }else{
+                            gl_FragColor = vec4(diff,0.1);
+                        }
+                    }
+                `,
+                // side: THREE.DoubleSide,
+                transparent: true,
+            });
+            const ground = new THREE.Mesh(planeGeo, ground_shaderMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground)
+            // 建筑
+            const geometry = new THREE.BoxGeometry(1, 1, 1)
+            geometry.translate(0, 0.5, 0)
+            // shaderMaterial 未使用
+            shaderMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    innerCircleWidth: { value: 0 },
+                    circleWidth: { value: shaderCircleWidth },
+                    color: { value: new THREE.Color(0, 0, 1) },
+                    activeColor: { value: new THREE.Color('#4e72b8') },
+                    opacity: { value: 0.9 },
+                    center: { value: new THREE.Vector3(0, 0, 0) },
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    varying vec3 v_position;
+                    void main() {
+                        vUv = uv;
+                        v_position = position;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    varying vec2 vUv;
+                    varying vec3 v_position;
+
+                    uniform float innerCircleWidth;
+                    uniform float circleWidth;
+                    uniform float opacity;
+                    uniform vec3 center;
+                    uniform vec3 activeColor;
+                    uniform vec3 color;
+
+                    void main() {
+                        float dis = length(v_position - center);
+                        if(dis < (innerCircleWidth + circleWidth) && dis > innerCircleWidth){
+                            float r = (dis - innerCircleWidth) / circleWidth;
+                            gl_FragColor = mix(vec4(activeColor, 0.1), vec4(color, opacity), r);
+                        }else{
+                            gl_FragColor = vec4(color, opacity);
+                        }
+                    }
+                `,
+            })
+            const material = new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true })
+            for (let i = 0; i < 500; i++) {
+                const mesh = new THREE.Mesh(geometry, material)
+                mesh.position.x = Math.random() * 1600 - 800
+                mesh.position.y = 0
+                mesh.position.z = Math.random() * 1600 - 800
+                mesh.scale.x = 20;
+                mesh.scale.y = Math.random() * 80 + 10;
+                mesh.scale.z = 20;
+                mesh.updateMatrix()
+                mesh.matrixAutoUpdate = false;
+                scene.add(mesh)
+            }
+        }
+        function initLight() {
+            const dirLight1 = new THREE.DirectionalLight(0xffffff);
+            dirLight1.position.set(1, 1, 1);
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x002288);
+            dirLight2.position.set(- 1, - 1, - 1);
+            scene.add(dirLight2);
+
+            const ambientLight = new THREE.AmbientLight(0x222222);
+            scene.add(ambientLight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate)
+            // mapControls.update()
+            renderer.render(scene, camera)
+            // shaderMaterial.uniforms.innerCircleWidth.value += 10
+            // if (shaderMaterial.uniforms.innerCircleWidth.value > 1700) {
+            //     shaderMaterial.uniforms.innerCircleWidth.value = 0
+            // }
+
+            ground_shaderMaterial.uniforms.innerCircleWidth.value += 10
+            if (ground_shaderMaterial.uniforms.innerCircleWidth.value > 1700) {
+                ground_shaderMaterial.uniforms.innerCircleWidth.value = 0
+            }
+        }
+    </script>
+</body>
+
+</html>
