@@ -3,7 +3,7 @@
  * @Author: zhh_e
  * @Date: 2023-04-13 11:09:02
  * @LastEditors: zhh_e
- * @LastEditTime: 2023-04-13 18:05:12
+ * @LastEditTime: 2023-04-14 10:52:10
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -16,11 +16,22 @@
 </head>
 <style>
     body {
-        margin: 0
+        /* background-color: #000; */
+        margin: 0;
+        overflow-x: hidden;
+    }
+
+    #box {
+        width: 100%;
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
     }
 </style>
 
 <body>
+    <div id="box"></div>
     <script type="importmap">
         {
             "imports": {
@@ -45,6 +56,7 @@
             bufferGeometry
             material
             toPosition
+            initToPosition
             speed
             color
             toColor
@@ -58,6 +70,8 @@
 
                 this.toPosition = new Float32Array(pointNumber * 3)
                 this.bufferGeometry.setAttribute('toPosition', new THREE.BufferAttribute(this.toPosition, 3))
+
+                this.initToPosition = new Float32Array(pointNumber * 3);
 
                 this.speed = new Float32Array(pointNumber)
                 this.bufferGeometry.setAttribute('speed', new THREE.BufferAttribute(this.speed, 1))
@@ -118,13 +132,13 @@
                                 discard;
                             if(dis == 0.0)
                                 discard;
-                            
-                            gl_FragColor = mix(vec4(vec3(0.2,0.4,0.9),1.0), vec4(vColor,1.0), 0.9 );
+
+                            gl_FragColor = vec4(vColor, strength * dis);
                         }
                     `,
                     transparent: true,
-
-
+                    // blending: THREE.AdditiveBlending,
+                    depthTest: false,
                 })
 
                 this.particle = new THREE.Points(
@@ -142,9 +156,13 @@
                     this.toPosition[i * 3 + 1] = Math.random() * 30 - 15
                     this.toPosition[i * 3 + 2] = Math.random() * 30 - 15
 
-                    this.toColor[i * 3] = Math.random()
-                    this.toColor[i * 3 + 1] = Math.random()
-                    this.toColor[i * 3 + 2] = Math.random()
+                    this.initToPosition[i * 3] = this.toPosition[i * 3];
+                    this.initToPosition[i * 3 + 1] = this.toPosition[i * 3 + 1];
+                    this.initToPosition[i * 3 + 2] = this.toPosition[i * 3 + 2];
+
+                    this.toColor[i * 3] = 1
+                    this.toColor[i * 3 + 1] = 1
+                    this.toColor[i * 3 + 2] = 1
 
                     this.scale[i] = 0.1 + Math.random() * 0.5;
                     this.speed[i] = Math.random() * 0.5 + 0.5
@@ -155,6 +173,14 @@
                 this.bufferGeometry.attributes.scale.needsUpdate = true
             }
             to(geometry, color) {
+                !geometry.boundingBox && geometry.computeBoundingBox();
+                const { min, max } = geometry.boundingBox;
+
+                const disColor = new THREE.Color();
+                disColor.r = color[1].r - color[0].r;
+                disColor.g = color[1].g - color[0].g;
+                disColor.b = color[1].b - color[0].b;
+
                 const { array, count } = geometry.getAttribute('position')
                 let targetIndex = 0
                 for (let i = 0; i < this.pointNumber; i++) {
@@ -167,13 +193,15 @@
                     this.toPosition[i * 3 + 1] = array[targetIndex * 3 + 1]
                     this.toPosition[i * 3 + 2] = array[targetIndex * 3 + 2]
 
+                    const percent = (this.toPosition[i * 3 + 1] - min.y) / (max.y - min.y);
+
                     this.color[i * 3] = this.toColor[i * 3]
                     this.color[i * 3 + 1] = this.toColor[i * 3 + 1]
                     this.color[i * 3 + 2] = this.toColor[i * 3 + 2]
 
-                    this.toColor[i * 3] = color ? color.r : Math.random()
-                    this.toColor[i * 3 + 1] = color ? color.g : Math.random()
-                    this.toColor[i * 3 + 2] = color ? color.b : Math.random()
+                    this.toColor[i * 3] = color[0].r + percent * disColor["r"];
+                    this.toColor[i * 3 + 1] = color[0].g + percent * disColor["g"];
+                    this.toColor[i * 3 + 2] = color[0].b + percent * disColor["b"];
 
                     this.speed[i] = Math.random() * 0.5 + 0.5
                     targetIndex++
@@ -183,6 +211,85 @@
                 this.bufferGeometry.attributes.speed.needsUpdate = true
                 this.bufferGeometry.attributes.color.needsUpdate = true
                 this.bufferGeometry.attributes.toColor.needsUpdate = true
+            }
+
+            translate(from, to) {
+                const fromPosition = from.geometry.getAttribute("position");
+                const toPosition = to.geometry.getAttribute("position");
+
+                const fromCount = fromPosition.count;
+                const toCount = toPosition.count;
+
+                let fromIndex = 0;
+                let toIndex = 0;
+                const { random } = Math;
+
+                !from.geometry.boundingBox && from.geometry.computeBoundingBox();
+                !to.geometry.boundingBox && to.geometry.computeBoundingBox();
+                const { min: fromMin, max: fromMax } = from.geometry.boundingBox;
+                const { min: toMin, max: toMax } = to.geometry.boundingBox;
+
+                this.particle.material.uniforms.yBoundingBox.value.set(
+                    toMin.y,
+                    toMax.y
+                );
+
+                const fromDisColor = new THREE.Color();
+                const toDisColor = new THREE.Color();
+                fromDisColor.r = from.color[1].r - from.color[0].r;
+                fromDisColor.g = from.color[1].g - from.color[0].g;
+                fromDisColor.b = from.color[1].b - from.color[0].b;
+                toDisColor.r = to.color[1].r - to.color[0].r;
+                toDisColor.g = to.color[1].g - to.color[0].g;
+                toDisColor.b = to.color[1].b - to.color[0].b;
+
+                for (let index = 0; index < this.pointNumber; index++) {
+                    const i3 = index * 3;
+                    fromIndex %= fromCount;
+                    toIndex %= toCount;
+
+                    const fromIndex3 = fromIndex * 3;
+                    const toIndex3 = toIndex * 3;
+
+                    this.position[i3] = fromPosition.array[fromIndex3];
+                    this.position[i3 + 1] = fromPosition.array[fromIndex3 + 1];
+                    this.position[i3 + 2] = fromPosition.array[fromIndex3 + 2];
+
+                    this.toPosition[i3] = toPosition.array[toIndex3];
+                    this.toPosition[i3 + 1] = toPosition.array[toIndex3 + 1];
+                    this.toPosition[i3 + 2] = toPosition.array[toIndex3 + 2];
+
+                    const fromPercent =
+                        (this.position[i3 + 1] - fromMin.x) / (fromMax.x - fromMin.x);
+                    const toPercent =
+                        (this.toPosition[i3 + 1] - toMin.x) / (toMax.x - toMin.x);
+
+                    this.color[i3] =
+                        from.color[0]["r"] + fromPercent * fromDisColor["r"];
+                    this.color[i3 + 1] =
+                        from.color[0]["g"] + fromPercent * fromDisColor["g"];
+                    this.color[i3 + 2] =
+                        from.color[0]["b"] + fromPercent * fromDisColor["b"];
+
+                    this.toColor[i3] = to.color[0]["r"] + toPercent * toDisColor["r"];
+                    this.toColor[i3 + 1] =
+                        to.color[0]["g"] + toPercent * toDisColor["g"];
+                    this.toColor[i3 + 2] =
+                        to.color[0]["b"] + toPercent * toDisColor["b"];
+
+                    this.speed[index] = 0.5 + random() * 0.5;
+                    fromIndex++;
+                    toIndex++;
+                }
+                this.bufferGeometry.attributes.position.needsUpdate = true;
+                this.bufferGeometry.attributes.speed.needsUpdate = true;
+                this.bufferGeometry.attributes.toPosition.needsUpdate = true;
+                this.bufferGeometry.attributes.color.needsUpdate = true;
+                this.bufferGeometry.attributes.toColor.needsUpdate = true;
+            }
+
+            setProgress(progress) {
+                this.material.uniforms.progress.value = progress;
             }
         }
 
@@ -201,10 +308,10 @@
             initScene()
             initCamera()
             initRenderer()
-            initOrbControls()
+            // initOrbControls()
             initAxis()
             initStats()
-            particleEffectIns = new ParticleEffect(50000)
+            particleEffectIns = new ParticleEffect(100000)
             scene.add(particleEffectIns.particle)
 
             initGUI()
@@ -218,21 +325,59 @@
             wall = gScene.getObjectByName('Wall')
             HoneyComb = gScene.getObjectByName('HoneyComb')
 
-            particleEffectIns.to(wall.geometry, new THREE.Color(0.2, 0.4, 0.9))
 
+            const list = [
+                { geometry: people.geometry.scale(3, 3, 3).translate(0, 0, 0), color: [new THREE.Color('#8acc8a'), new THREE.Color('#8acc8a')] },
+                { geometry: worm_Gear.geometry.scale(3, 3, 3).translate(0, 0, 0), color: [new THREE.Color('#8acc8a'), new THREE.Color('#8acc8a')] },
+                { geometry: wall.geometry.scale(3, 3, 3).translate(0, 0, 0), color: [new THREE.Color('#8acc8a'), new THREE.Color('#8acc8a')] },
+                { geometry: HoneyComb.geometry.scale(3, 3, 3).translate(0, 0, 0), color: [new THREE.Color('#8acc8a'), new THREE.Color('#8acc8a')] },
+            ]
+
+            list[-1] = {
+                geometry: new THREE.BufferGeometry().setAttribute(
+                    "position",
+                    new THREE.BufferAttribute(particleEffectIns.initToPosition, 3)
+                ),
+                color: [new THREE.Color("#fff"), new THREE.Color("#fff")],
+            };
+
+            document.body.style.height = window.innerHeight * (list.length + 1) - 1 + 'px'
+
+            particleEffectIns.to(list[0].geometry, list[0].color)
+            particleEffectIns.setProgress(1);
+
+            let curr = 0
+            document.addEventListener('scroll', function () {
+                const currentScrollHeight = window.scrollY
+                const percent = currentScrollHeight / window.innerHeight
+                const currIndex = Math.floor(percent)
+
+                if (curr != currIndex) {
+                    if (curr < currIndex) {
+                        particleEffectIns.to(list[currIndex].geometry, list[currIndex].color)
+                    } else {
+                        particleEffectIns.translate(list[currIndex - 1], list[curr - 1]);
+                    }
+                    curr = currIndex;
+                }
+                particleEffectIns.setProgress(percent - currIndex);
+
+            })
         }
         function initScene() {
             scene = new THREE.Scene()
         }
         function initCamera() {
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-            camera.position.set(50, 50, 70)
+            camera.position.set(5, 0, 50)
         }
         function initRenderer() {
             renderer = new THREE.WebGLRenderer()
-            renderer.setSize(window.innerWidth, window.innerHeight)
+            const el = document.querySelector('#box')
+            renderer.setSize(el.clientWidth, el.clientHeight)
             renderer.setPixelRatio(window.devicePixelRatio)
-            document.body.appendChild(renderer.domElement)
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            el.appendChild(renderer.domElement)
         }
         function initOrbControls() {
             orbControls = new OrbitControls(camera, renderer.domElement)
@@ -252,13 +397,11 @@
                 switch (value) {
                     case 'sphere':
                         guiParams.progress = 0
-                        particleEffectIns.to(worm_Gear.geometry, new THREE.Color(0.6, 0.4, 0.9))
-                        // particleEffectIns.to(new THREE.SphereGeometry(30, 64, 64), new THREE.Color(0.2, 0.4, 0.9))
+                        particleEffectIns.to(worm_Gear.geometry, [new THREE.Color('#5ebadf'), new THREE.Color('#5ebadf')])
                         break;
                     case 'box':
                         guiParams.progress = 0
-                        particleEffectIns.to(people.geometry, new THREE.Color(0.9, 0.4, 0.2))
-                        // particleEffectIns.to(new THREE.BoxGeometry(30, 30, 30, 20, 20, 20), new THREE.Color(0.9, 0.4, 0.2))
+                        particleEffectIns.to(people.geometry, [new THREE.Color('#ee4040'), new THREE.Color('#ee4040')])
                         break;
                     default:
                         break;
@@ -269,9 +412,9 @@
             requestAnimationFrame(animate)
             renderer.render(scene, camera)
             stats.update()
-            guiParams.progress += 0.01
-            if (guiParams.progress >= 1) guiParams.progress = 1
-            particleEffectIns.setProgress(guiParams.progress)
+            // guiParams.progress += 0.01
+            // if (guiParams.progress >= 1) guiParams.progress = 1
+            // particleEffectIns.setProgress(guiParams.progress)
         }
         async function loadGltf(path) {
             let loader = new GLTFLoader();
