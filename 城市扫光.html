@@ -27,9 +27,30 @@
 
         import { MapControls } from 'three/addons/controls/MapControls.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { Tween, Easing, update } from 'three/addons/libs/tween.module.js';
 
         let camera, mapControls, scene, renderer, orbControls;
-        let shaderMaterial, ground_shaderMaterial, shaderCircleWidth = 300
+        let shaderMaterial, ground_shaderMaterial, shaderCircleWidth = 50;
+        let initTween, isInit = false
+
+        let raycaster, pointer, selectedObj;
+        let buildingMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true })
+        let groupBody = new THREE.Group()
+
+        const clock = new THREE.Clock()
+
+        // Tween 动画
+        let startCameraPosition = {
+            x: 10000,
+            y: 0,
+            z: 0
+        }
+        let targetCameraPosition = {
+            x: 600,
+            y: 200,
+            z: 0
+        }
+
         init()
         animate()
 
@@ -41,6 +62,8 @@
             initOriControls()
             initLight()
             initWorld()
+            initAnimate()
+            initRaycaster()
         }
         function initScene() {
             scene = new THREE.Scene()
@@ -49,7 +72,7 @@
         }
         function initCamera() {
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
-            camera.position.set(500, 200, 0);
+            camera.position.set(startCameraPosition.x, startCameraPosition.y, startCameraPosition.z);
         }
         function initRenderer() {
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -68,7 +91,6 @@
         }
         function initOriControls() {
             orbControls = new OrbitControls(camera, renderer.domElement);
-
         }
         function initWorld() {
             // 地面
@@ -118,10 +140,13 @@
             });
             const ground = new THREE.Mesh(planeGeo, ground_shaderMaterial);
             ground.rotation.x = -Math.PI / 2;
-            scene.add(ground)
+            groupBody.add(ground)
+            // scene.add(ground)
             // 建筑
             const geometry = new THREE.BoxGeometry(1, 1, 1)
             geometry.translate(0, 0.5, 0)
+            geometry.setAttribute('isBuilding', new THREE.BufferAttribute(new Float32Array(1), 1))
+            // geometry.setAttribute('defaultColor', new THREE.Color(0xffffff))
             // shaderMaterial 未使用
             shaderMaterial = new THREE.ShaderMaterial({
                 uniforms: {
@@ -163,9 +188,8 @@
                     }
                 `,
             })
-            const material = new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true })
             for (let i = 0; i < 500; i++) {
-                const mesh = new THREE.Mesh(geometry, material)
+                const mesh = new THREE.Mesh(geometry, buildingMaterial.clone())
                 mesh.position.x = Math.random() * 1600 - 800
                 mesh.position.y = 0
                 mesh.position.z = Math.random() * 1600 - 800
@@ -174,8 +198,10 @@
                 mesh.scale.z = 20;
                 mesh.updateMatrix()
                 mesh.matrixAutoUpdate = false;
-                scene.add(mesh)
+                groupBody.add(mesh)
+                // scene.add(mesh)
             }
+            scene.add(groupBody)
         }
         function initLight() {
             const dirLight1 = new THREE.DirectionalLight(0xffffff);
@@ -190,19 +216,59 @@
             scene.add(ambientLight);
         }
 
+
         function animate() {
+            const spt = clock.getDelta()
             requestAnimationFrame(animate)
-            // mapControls.update()
             renderer.render(scene, camera)
-            // shaderMaterial.uniforms.innerCircleWidth.value += 10
-            // if (shaderMaterial.uniforms.innerCircleWidth.value > 1700) {
-            //     shaderMaterial.uniforms.innerCircleWidth.value = 0
-            // }
+            update()
+            if (isInit) {
+                groupBody.rotation.y += spt * 0.1
+            }
 
             ground_shaderMaterial.uniforms.innerCircleWidth.value += 10
             if (ground_shaderMaterial.uniforms.innerCircleWidth.value > 1700) {
                 ground_shaderMaterial.uniforms.innerCircleWidth.value = 0
             }
+        }
+
+        // 入场动画
+        function initAnimate() {
+            initTween = new Tween(startCameraPosition).to(targetCameraPosition, 3000).easing(Easing.Quadratic.InOut).onUpdate(function () {
+                camera.position.x = startCameraPosition.x;
+                camera.position.y = startCameraPosition.y;
+                camera.position.z = startCameraPosition.z;
+                camera.lookAt(0, 0, 0)
+            }).onComplete(function () {
+                isInit = true
+            }).start()
+        }
+
+        function initRaycaster() {
+            raycaster = new THREE.Raycaster();
+            pointer = new THREE.Vector2();
+            document.addEventListener('mousemove', onDocumentMouseMove, false);
+            document.addEventListener('mousedown', onDocumentMouseDown, false);
+        }
+        function onDocumentMouseMove(e) {
+            if (selectedObj) {
+                selectedObj.material.color.set(new THREE.Color(0xffffff))
+                selectedObj = null
+            }
+            pointer.x = e.clientX / renderer.domElement.clientWidth * 2 - 1;
+            pointer.y = -(e.clientY / renderer.domElement.clientHeight * 2) + 1;
+            raycaster.setFromCamera(pointer, camera)
+            const intersects = raycaster.intersectObjects(scene.children)
+            if (intersects.length) {
+                const obj = intersects[0].object;
+                if (obj.type === 'Mesh' && obj.geometry.attributes.isBuilding) {
+                    obj.material.color.set('#4e72b8')
+                    selectedObj = obj
+                }
+            }
+        }
+        function onDocumentMouseDown() {
+
         }
     </script>
 </body>
