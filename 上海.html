@@ -3,7 +3,7 @@
  * @Author: zhh_e
  * @Date: 2023-05-04 15:28:30
  * @LastEditors: zhh_e
- * @LastEditTime: 2023-05-04 17:54:55
+ * @LastEditTime: 2023-05-05 10:11:30
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -39,9 +39,18 @@
         let camera, scene, renderer, orbControls;
         let height = 0.0
         let cityShader, buildingLGroup = new THREE.Group()
+
+        let wallShader
         baseInit()
+        // initAxhelper()
         initCity()
+        addWall()
         animate()
+
+        function initAxhelper() {
+            const axesHelper = new THREE.AxesHelper(1000);
+            scene.add(axesHelper);
+        }
 
         function baseInit() {
             // 初始化场景
@@ -92,6 +101,7 @@
                             setCityLineMaterial(child)
                             setCityMaterial(child)
                         } else if (["ROADS"].includes(child.name)) {
+                            setRoadLine(child)
                             //道路
                             const material = new THREE.MeshBasicMaterial({
                                 color: "rgb(41,46,76)",
@@ -108,6 +118,7 @@
                             // 地板 
                             const material = new THREE.MeshBasicMaterial({
                                 color: "#040912",
+                                side: THREE.DoubleSide,
                             });
                             const mesh = new THREE.Mesh(child.geometry, material);
                             mesh.rotateX(-Math.PI / 2);
@@ -177,6 +188,15 @@
             mesh.rotateX(-Math.PI / 2);
             buildingLGroup.add(mesh)
         }
+        function setRoadLine(obj) {
+            console.log(' ====> obj', obj);
+            const edges = new THREE.EdgesGeometry(obj.geometry, 1)
+            const lineMaterial = new THREE.LineBasicMaterial({ color: '#c20a0a' })
+            const roadLine = new THREE.LineSegments(edges, lineMaterial)
+            roadLine.position.set(obj.position.x, obj.position.y, obj.position.z)
+            roadLine.rotateX(-Math.PI / 2);
+            scene.add(roadLine)
+        }
         // 生成线框
         function setCityLineMaterial(obj) {
             const edges = new THREE.EdgesGeometry(obj.geometry, 1);
@@ -190,6 +210,46 @@
             line.rotateX(-Math.PI / 2);
             scene.add(line)
         }
+        function addWall() {
+            const geometry = new THREE.CylinderGeometry(300, 300, 220, 32, 1, true);
+            geometry.translate(0, 220 / 2, 0);
+            wallShader = new THREE.ShaderMaterial({
+                uniforms: {
+                    height: { value: 220 },
+                    uOpacity: { value: 0.3 },
+                    uColor: { value: new THREE.Color(0xffff00) },
+                    uTime: { value: 0.0 },
+                },
+                vertexShader: `
+                    varying vec3 vPosition;
+                    uniform float uTime;
+                    uniform float height;
+                    varying float v_opacity;
+                    void main(){
+                        vPosition = position * mod(uTime/ 20.0, 1.0);
+                        v_opacity = 1.0 - vPosition.y / height;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(vPosition,1.0);
+                    }
+                `,
+                fragmentShader: `
+                    varying float v_opacity;
+                    uniform float uOpacity;
+                    uniform vec3 uColor;
+                    void main(){
+                        gl_FragColor = vec4(uColor, v_opacity * uOpacity);
+                    }
+                `,
+                transparent: true,
+                side: THREE.DoubleSide,
+                // depthWrite: false,
+                // depthTest: false,
+            })
+            const material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide, transparent: true, depthWrite: true });
+            const wall = new THREE.Mesh(geometry, wallShader);
+            //设置模型遮挡，把这个模型放到最前面防止遮挡
+            wall.renderOrder = 5;
+            scene.add(wall);
+        }
 
         function loadGltf(path) {
             const dracoLoader = new DRACOLoader();
@@ -201,14 +261,17 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            height += 0.8;
-            if (height > 100) {
+            height += 0.2;
+            if (height > 60) {
                 height = 0.0;
             }
             if (buildingLGroup) {
                 buildingLGroup.children.forEach((item) => {
                     item.material.uniforms.height.value = height
                 })
+            }
+            if (wallShader) {
+                wallShader.uniforms.uTime.value = height;
             }
 
             renderer.render(scene, camera);

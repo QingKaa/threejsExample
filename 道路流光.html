@@ -1,0 +1,117 @@
+<!--
+ * @Description: 
+ * @Author: zhh_e
+ * @Date: 2023-05-05 11:13:44
+ * @LastEditors: zhh_e
+ * @LastEditTime: 2023-05-05 12:00:19
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>道路流光</title>
+</head>
+<style>
+    body {
+        margin: 0
+    }
+</style>
+
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./js/three.module.js",
+                "three/addons/": "./js/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, orbControls
+        let texture
+
+        baseInit()
+        initAxesHelper()
+        initLine()
+        animate()
+
+
+        function initAxesHelper() {
+            const axesHelper = new THREE.AxesHelper(10000);
+            scene.add(axesHelper);
+        }
+        function animate() {
+            requestAnimationFrame(animate);
+            if (texture) texture.offset.x -= 0.01
+            renderer.render(scene, camera);
+        }
+        function baseInit() {
+            // 初始化场景
+            scene = new THREE.Scene()
+            scene.background = new THREE.Color(0x000000);
+
+            // 初始化相机
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera.position.set(20, 9, 5)
+            // 初始化渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            // renderer.outputEncoding = THREE.sRGBEncoding;
+            document.body.appendChild(renderer.domElement);
+
+            // 初始化控制器
+            orbControls = new OrbitControls(camera, renderer.domElement);
+
+            // //创建点光源和环境光源
+            // const point = new THREE.PointLight(0xffffff);
+            // point.position.set(600, 900, 600); // 点光源位置
+            // scene.add(point); // 点光源添加到场景中
+            // // 环境光
+            // const ambient = new THREE.AmbientLight(0x404040, 1);
+            // scene.add(ambient);
+        }
+
+        function initLine() {
+            let points = [
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(10, 0, 0),
+                new THREE.Vector3(10, 0, 10),
+                new THREE.Vector3(0, 0, 10),
+                new THREE.Vector3(0, 0, 0),
+            ]
+            let curve = new THREE.CatmullRomCurve3(points)
+            let tubeGeometry = new THREE.TubeGeometry(curve, 80, 0.1)
+            texture = new THREE.TextureLoader().load('./img/y1.png')
+            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(1, 1);
+            texture.needsUpdate = true;
+
+            let material = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide,
+                depthWrite: true,
+                depthTest: true,
+            })
+
+            let mesh = new THREE.Mesh(tubeGeometry, material)
+            let meshBase = new THREE.Mesh(tubeGeometry, new THREE.MeshBasicMaterial({
+                color: new THREE.Color(0xffffff),
+                transparent: true,
+                opacity: 0.1,
+            }))
+
+            scene.add(mesh)
+            // scene.add(meshBase)
+        }
+    </script>
+</body>
+
+</html>
