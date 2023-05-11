@@ -35,10 +35,25 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+        import { Tween, Easing, update } from 'three/addons/libs/tween.module.js';
 
         let camera, scene, renderer, orbControls;
         let height = 0.0
         let cityShader, buildingLGroup = new THREE.Group()
+
+        let  isInit = false,initTween
+         // Tween 动画
+         let startCameraPosition = {
+            x: 10000,
+            y: 0,
+            z: 0
+        }
+        let targetCameraPosition = {
+            x: 600,
+            y: 900,
+            z: 600
+        }
+
 
         let wallShader
         baseInit()
@@ -46,6 +61,19 @@
         initCity()
         addWall()
         animate()
+        initAnimate()
+
+        // 入场动画
+        function initAnimate() {
+            initTween = new Tween(startCameraPosition).to(targetCameraPosition, 7000).easing(Easing.Quadratic.InOut).onUpdate(function () {
+                camera.position.x = startCameraPosition.x;
+                camera.position.y = startCameraPosition.y;
+                camera.position.z = startCameraPosition.z;
+                camera.lookAt(0, 0, 0)
+            }).onComplete(function () {
+                isInit = true
+            }).start()
+        }
 
         function initAxhelper() {
             const axesHelper = new THREE.AxesHelper(1000);
@@ -62,7 +90,8 @@
 
             // 初始化相机
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 100000);
-            camera.position.set(600, 900, 600); // 树上面观察
+            camera.position.set(startCameraPosition.x, startCameraPosition.y, startCameraPosition.z);
+            // camera.position.set(600, 900, 600); // 树上面观察
             camera.lookAt(scene.position); // 设置相机方向(指向的场景对象)
 
             // 初始化渲染器
@@ -261,6 +290,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            update()
             height += 0.2;
             if (height > 60) {
                 height = 0.0;
