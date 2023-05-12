@@ -41,23 +41,23 @@
         let height = 0.0
         let cityShader, buildingLGroup = new THREE.Group()
 
-        let  isInit = false,initTween
-         // Tween 动画
-         let startCameraPosition = {
+        let isInit = false, initTween
+        // Tween 动画
+        let startCameraPosition = {
             x: 10000,
             y: 0,
             z: 0
         }
         let targetCameraPosition = {
-            x: 600,
+            x: 1000,
             y: 900,
-            z: 600
+            z: 0
         }
 
 
         let wallShader
         baseInit()
-        // initAxhelper()
+        initAxhelper()
         initCity()
         addWall()
         animate()
@@ -69,7 +69,7 @@
                 camera.position.x = startCameraPosition.x;
                 camera.position.y = startCameraPosition.y;
                 camera.position.z = startCameraPosition.z;
-                camera.lookAt(0, 0, 0)
+                // camera.lookAt(0, 0, 0)
             }).onComplete(function () {
                 isInit = true
             }).start()
@@ -83,10 +83,10 @@
         function baseInit() {
             // 初始化场景
             scene = new THREE.Scene()
-            const textureCube = new THREE.CubeTextureLoader().setPath('./img/').load([
-                '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'
-            ])
-            scene.background = textureCube
+            // const textureCube = new THREE.CubeTextureLoader().setPath('./img/').load([
+            //     '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'
+            // ])
+            // scene.background = textureCube
 
             // 初始化相机
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 100000);
@@ -103,6 +103,8 @@
 
             // 初始化控制器
             orbControls = new OrbitControls(camera, renderer.domElement);
+            orbControls.autoRotate = true
+            orbControls.minPolarAngle = 0
 
             //创建点光源和环境光源
             const point = new THREE.PointLight(0xffffff);
@@ -122,6 +124,8 @@
 
             loader.load('./gltf/shanghai.gltf', function (cityObj) {
                 const cityScene = cityObj.scene
+                console.log(' ====> cityScene', cityScene);
+                camera.lookAt(cityScene.position)
                 cityScene.traverse(function (child) {
                     // 设置线框材质
                     if (child.isMesh) {
@@ -139,7 +143,7 @@
                             mesh.rotateX(-Math.PI / 2);
                             mesh.position.set(
                                 child.position.x,
-                                child.position.y,
+                                0,
                                 child.position.z
                             );
                             scene.add(mesh);
@@ -153,7 +157,7 @@
                             mesh.rotateX(-Math.PI / 2);
                             mesh.position.set(
                                 child.position.x,
-                                child.position.y,
+                                0,
                                 child.position.z
                             );
                             scene.add(mesh);
@@ -213,16 +217,15 @@
                 transparent: true
             })
             const mesh = new THREE.Mesh(obj.geometry, shader)
-            mesh.position.set(obj.position.x, obj.position.y, obj.position.z)
+            mesh.position.set(obj.position.x, 0, obj.position.z)
             mesh.rotateX(-Math.PI / 2);
             buildingLGroup.add(mesh)
         }
         function setRoadLine(obj) {
-            console.log(' ====> obj', obj);
             const edges = new THREE.EdgesGeometry(obj.geometry, 1)
             const lineMaterial = new THREE.LineBasicMaterial({ color: '#c20a0a' })
             const roadLine = new THREE.LineSegments(edges, lineMaterial)
-            roadLine.position.set(obj.position.x, obj.position.y, obj.position.z)
+            roadLine.position.set(obj.position.x, 0, obj.position.z)
             roadLine.rotateX(-Math.PI / 2);
             scene.add(roadLine)
         }
@@ -235,7 +238,7 @@
                 color: "rgba(91, 162, 255, 1)",
             });
             const line = new THREE.LineSegments(edges, lineMaterial)
-            line.position.set(obj.position.x, obj.position.y, obj.position.z)
+            line.position.set(obj.position.x, 0, obj.position.z)
             line.rotateX(-Math.PI / 2);
             scene.add(line)
         }
@@ -291,6 +294,7 @@
         function animate() {
             requestAnimationFrame(animate);
             update()
+            orbControls.update()
             height += 0.2;
             if (height > 60) {
                 height = 0.0;
