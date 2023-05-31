@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星系</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            overflow: hidden;
+        }
+
+        .webgl {
+            position: fixed;
+            top: 0;
+            left: 0;
+            outline: none;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas" class="webgl"></canvas>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./js/three.module.js",
+                "three/addons/": "./js/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from "three"
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GUI } from "three/addons/libs/lil-gui.module.min.js"
+
+
+        let camera, scene, renderer, canvas, controls, gui
+
+        const sizes = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        }
+
+
+        baseInit()
+        function baseInit() {
+            canvas = document.querySelector('#canvas')
+
+            gui = new GUI()
+
+            // scene
+            scene = new THREE.Scene()
+
+            // camera
+            camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
+            camera.position.set(3, 3, 3)
+            scene.add(camera)
+
+            // renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, canvas })
+            renderer.setSize(sizes.width, sizes.height)
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement)
+            controls.enableDamping = true
+
+            // const axesHelper = new THREE.AxesHelper(3)
+            // scene.add(axesHelper)
+        }
+
+        /**
+         * Animate
+         */
+        const clock = new THREE.Clock()
+
+        const tick = () => {
+            const elapsedTime = clock.getElapsedTime()
+
+            // Update controls
+            controls && controls.update()
+
+            // Render
+            renderer.render(scene, camera)
+
+            // Call tick again on the next frame
+            window.requestAnimationFrame(tick)
+        }
+
+        tick()
+
+        window.addEventListener('resize', () => {
+            // Update sizes
+            sizes.width = window.innerWidth
+            sizes.height = window.innerHeight
+
+            // Update camera
+            camera.aspect = sizes.width / sizes.height
+            camera.updateProjectionMatrix()
+
+            // Update renderer
+            renderer.setSize(sizes.width, sizes.height)
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+        })
+
+        // ---------------------------- TODO ---------------------------------
+        const parameters = {
+            // 粒子数量
+            count: 50000,
+            // 粒子大小: 0.01,
+            size: 0.01,
+            // 粒子范围: 5,
+            radius: 3,
+            // 分支数量: 3,
+            branches: 3,
+            // 分支角度: 2,
+            spin: 2,
+            randomness: 0.1,
+            randomnessPower: 6,
+            insideColor: '#ff6030',
+            outsideColor: '#1b3984',
+        }
+        gui.add(parameters, 'count').min(500).max(500000).step(500).onFinishChange(generateGalaxy)
+        gui.add(parameters, 'size').min(0.01).max(1).step(0.001).onFinishChange(generateGalaxy)
+        gui.add(parameters, 'radius').min(1).max(20).step(0.1).onFinishChange(generateGalaxy)
+        gui.add(parameters, 'spin').min(0).max(20).step(0.01).onFinishChange(generateGalaxy)
+        gui.add(parameters, 'branches').min(1).max(6).step(1).onFinishChange(generateGalaxy)
+        gui.add(parameters, 'randomness').min(0.01).max(3).step(0.01).onFinishChange(generateGalaxy)
+        gui.add(parameters, 'randomnessPower').min(1).max(20).step(1).onFinishChange(generateGalaxy)
+        gui.addColor(parameters, 'insideColor').onFinishChange(generateGalaxy)
+        gui.addColor(parameters, 'outsideColor').onFinishChange(generateGalaxy)
+
+
+        let geometry = null
+        let material = null
+        let points = null
+        // 生成星系
+        function generateGalaxy() {
+            if (points !== null) {
+                geometry.dispose()
+                material.dispose()
+                scene.remove(points)
+            }
+
+            geometry = new THREE.BufferGeometry()
+            const position = new Float32Array(parameters.count * 3)
+            const color = new Float32Array(parameters.count * 3)
+
+            for (let i = 0; i < parameters.count; i++) {
+                const i3 = i * 3
+                // 生成粒子位置
+                const radius = Math.random() * parameters.radius
+                const spinAngle = radius * parameters.spin
+                const branchAngle = (i % parameters.branches) / parameters.branches * Math.PI * 2
+                const randomX = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1)
+                const randomY = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1)
+                const randomZ = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1)
+                position[i3] = Math.cos(branchAngle + spinAngle) * radius + randomX
+                position[i3 + 1] = randomY
+                position[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ
+
+                const colorTemp = new THREE.Color(parameters.insideColor)
+                colorTemp.lerp(new THREE.Color(parameters.outsideColor), radius / parameters.radius)
+                color[i3] = colorTemp.r
+                color[i3 + 1] = colorTemp.g
+                color[i3 + 2] = colorTemp.b
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(position, 3))
+            geometry.setAttribute('color', new THREE.BufferAttribute(color, 3))
+            material = new THREE.PointsMaterial({
+                size: parameters.size,
+                sizeAttenuation: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                vertexColors: true, // 使用顶点颜色
+            })
+            points = new THREE.Points(geometry, material)
+            scene.add(points)
+        }
+        generateGalaxy()
+
+        function generateBoxPoints() {
+            const box = new THREE.BoxGeometry(2, 2, 2, 32, 32, 32)
+            const geometry = new THREE.BufferGeometry()
+            const position = new Float32Array(box.attributes.position.count * 3)
+            for (let i = 0; i < parameters.count; i++) {
+                const i3 = i * 3
+                const radius = Math.random() * parameters.radius
+                const spinAngle = radius * parameters.spin
+                const branchAngle = (i % parameters.branches) / parameters.branches * Math.PI * 2
+                const randomX = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1)
+                const randomY = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1)
+                const randomZ = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1)
+                position[i3] = Math.cos(branchAngle + spinAngle) * radius + randomX
+                position[i3 + 1] = randomY
+                position[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(position, 3))
+            const pointsMaterial = new THREE.PointsMaterial({
+                size: 0.01, // 粒子大小
+                sizeAttenuation: true, // 粒子大小是否随远近而变化 默认true
+            })
+
+            const point = new THREE.Points(geometry, pointsMaterial)
+            scene.add(point)
+        }
+        // generateBoxPoints()
+    </script>
+</body>
+
+</html>
